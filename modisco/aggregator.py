@@ -819,7 +819,8 @@ class DynamicDistanceSimilarPatternsCollapser(object):
         self.postprocessor = postprocessor
         self.verbose = verbose
 
-    def __call__(self, patterns, seqlets):
+    def __call__(self, patterns):
+
 
         patterns = [x.copy() for x in patterns]
         merge_hierarchy_levels = []        
@@ -842,28 +843,34 @@ class DynamicDistanceSimilarPatternsCollapser(object):
             if (self.verbose):
                 print("Computing pattern to seqlet distances")
                 sys.stdout.flush()
-            patterns_to_seqlets_dist =\
-                self.aff_to_dist_mat(self.pattern_to_pattern_sim_computer(
+
+            seqlets = [x for pattern in patterns for x in pattern.seqlets]
+            orig_seqlet_membership = [pattern_idx for (pattern_idx,pattern)
+                                      in enumerate(patterns)
+                                      for x in pattern.seqlets]
+            patterns_to_seqlets_simmat =\
+                self.pattern_to_pattern_sim_computer(
                                         seqlets=seqlets,
-                                        filter_seqlets=patterns))
-            desired_perplexities = [len(pattern.seqlets_and_alnmts)
-                                    for pattern in patterns]
-            pattern_betas = np.array([
-                util.binary_search_perplexity(
-                    desired_perplexity=desired_perplexity,
-                    distances=distances)[0]
-                for desired_perplexity,distances
-                in zip(desired_perplexities, patterns_to_seqlets_dist.T)])
+                                        filter_seqlets=patterns)
+            cross_contamination = np.zeros(len(patterns_to_seqlets_dist))
+            for seqlet_idx in range(patterns_to_seqlets_simmat.shape[1]):
+                seqlet_orig_pattern = orig_seqlet_membership[seqlet_idx]
+                seqlet_self_sim = patterns_to_seqlets_simmat[
+                                   seqlet_orig_pattern, seqlet_idx]
+                for pattern_idx in range(patterns_to_seqlets_simmat.shape[0]):
+                    if (patterns_to_seqlets_simmat[pattern_idx, seqlet_idx] >=
+                        seqlet_self_sim):
+                        cross_contamination[seqlet_orig_pattern,
+                                            pattern_idx] += 1 
+            #normalize the cross_contamination rows by the num in the diagonal 
+            for pattern_idx in range(len(cross_contamination)):
+                cross_contamination[pattern_idx] =\
+                 (cross_contamination[pattern_idx]/
+                  cross_contamination[pattern_idx,patern_idx])
 
             if (self.verbose):
-                print("Computing pattern to pattern distances")
+                print("Computing pattern to pattern sims")
                 sys.stdout.flush()
-            patterns_to_patterns_dist =\
-                self.aff_to_dist_mat(self.pattern_to_pattern_sim_computer(
-                                     seqlets=patterns,
-                                     filter_seqlets=patterns))
-            patterns_dist_probs = np.exp(-pattern_betas[:,None]*
-                                         patterns_to_patterns_dist)
             patterns_to_patterns_aligner_sim =\
                 np.zeros((len(patterns), len(patterns))) 
             for i,pattern1 in enumerate(patterns):
@@ -883,14 +890,14 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                             key=lambda x: -x[2])
             #iterate over pairs
             for (i,j,aligner_sim) in sorted_pairs:
-                dist_prob = min(patterns_dist_probs[i,j],
-                                patterns_dist_probs[j,i])
-                if (self.collapse_condition(dist_prob=dist_prob,
+                cross_contam = min(cross_contamination[i,j],
+                                   cross_contamination[j,i])
+                if (self.collapse_condition(cross_contam=cross_contam,
                                             aligner_sim=aligner_sim)):
                     if (self.verbose):
                         print("Collapsing "+str(i)
                               +" & "+str(j)
-                              +" with prob "+str(dist_prob)+" and"
+                              +" with crosscontam "+str(cross_contam)+" and"
                               +" sim "+str(aligner_sim)) 
                         sys.stdout.flush()
 
@@ -903,22 +910,22 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                     for m1 in merge_under_consideration:
                         for m2 in merge_under_consideration:
                             if (m1 < m2):
-                                min_dist_prob_here =\
-                                    min(patterns_dist_probs[m1, m2],
-                                        patterns_dist_probs[m2, m1])
+                                cross_contam_here =\
+                                    min(cross_contamination[m1, m2],
+                                        cross_contamination[m2, m1])
                                 aligner_sim_here =\
                                     patterns_to_patterns_aligner_sim[
                                         m1, m2]
                                 if (self.dealbreaker_condition(
-                                        dist_prob=min_dist_prob_here,
+                                        cross_contam=cross_contam_here,
                                         aligner_sim=aligner_sim_here)):
                                     collapse_passed=False                     
                                     if (self.verbose):
                                         print("Aborting collapse as "
                                               +str(m1)
                                               +" & "+str(m2)
-                                              +" have prob "
-                                              +str(min_dist_prob_here)
+                                              +" have cross-contam "
+                                              +str(cross_contam_here)
                                               +" and"
                                               +" sim "
                                               +str(aligner_sim_here)) 
@@ -932,11 +939,10 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                                 merge_under_consideration 
                 else:
                     if (self.verbose):
-                        pass
-                        #print("Not collapsed "+str(i)+" & "+str(j)
-                        #      +" with prob "+str(dist_prob)+" and"
-                        #      +" sim "+str(aligner_sim)) 
-                        #sys.stdout.flush()
+                        print("Not collapsed "+str(i)+" & "+str(j)
+                              +" with cross-contam "+str(cross_contam)+" and"
+                              +" sim "+str(aligner_sim)) 
+                        sys.stdout.flush()
 
             for i,j in indices_to_merge:
                 pattern1 = patterns[i]

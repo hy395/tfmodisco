@@ -40,10 +40,10 @@ class TfModiscoSeqletsToPatternsFactory(object):
                        trim_to_window_size=30,
                        initial_flank_to_add=10,
 
-                       prob_and_pertrack_sim_merge_thresholds=[
+                       crosscontam_and_pertrack_sim_merge_thresholds=[
                         (0.0001,0.84), (0.00001, 0.87), (0.000001, 0.9)],
 
-                       prob_and_pertrack_sim_dealbreaker_thresholds=[
+                       crosscontam_and_pertrack_sim_dealbreaker_thresholds=[
                         (0.1,0.75), (0.01, 0.8), (0.001, 0.83),
                         (0.0000001,0.9)],
 
@@ -89,10 +89,10 @@ class TfModiscoSeqletsToPatternsFactory(object):
         self.initial_flank_to_add = initial_flank_to_add 
 
         #merging similar patterns
-        self.prob_and_pertrack_sim_merge_thresholds =\
-            prob_and_pertrack_sim_merge_thresholds
-        self.prob_and_pertrack_sim_dealbreaker_thresholds =\
-            prob_and_pertrack_sim_dealbreaker_thresholds
+        self.crosscontam_and_pertrack_sim_merge_thresholds =\
+            crosscontam_and_pertrack_sim_merge_thresholds
+        self.crosscontam_and_pertrack_sim_dealbreaker_thresholds =\
+            crosscontam_and_pertrack_sim_dealbreaker_thresholds
 
         self.threshold_for_spurious_merge_detection =\
             threshold_for_spurious_merge_detection
@@ -139,10 +139,10 @@ class TfModiscoSeqletsToPatternsFactory(object):
                 ('min_num_to_trim_to', self.min_num_to_trim_to),
                 ('trim_to_window_size', self.trim_to_window_size),
                 ('initial_flank_to_add', self.initial_flank_to_add),
-                ('prob_and_pertrack_sim_merge_thresholds',
-                 self.prob_and_pertrack_sim_merge_thresholds),
-                ('prob_and_pertrack_sim_dealbreaker_thresholds',
-                 self.prob_and_pertrack_sim_dealbreaker_thresholds),
+                ('crosscontam_and_pertrack_sim_merge_thresholds',
+                 self.crosscontam_and_pertrack_sim_merge_thresholds),
+                ('crosscontam_and_pertrack_sim_dealbreaker_thresholds',
+                 self.crosscontam_and_pertrack_sim_dealbreaker_thresholds),
                 ('threshold_for_spurious_merge_detection',
                  self.threshold_for_spurious_merge_detection),
                 ('min_similarity_for_seqlet_assignment',
@@ -298,14 +298,14 @@ class TfModiscoSeqletsToPatternsFactory(object):
                         verbose=False))
 
         #similarity settings for merging
-        prob_and_sim_merge_thresholds =\
+        crosscontam_and_sim_merge_thresholds =\
             [(x[0], x[1]*(len(contrib_scores_track_names)
                           +len(other_comparison_track_names)))
-             for x in self.prob_and_pertrack_sim_merge_thresholds]
-        prob_and_sim_dealbreaker_thresholds =\
+             for x in self.crosscontam_and_pertrack_sim_merge_thresholds]
+        crosscontam_and_sim_dealbreaker_thresholds =\
             [(x[0], x[1]*(len(contrib_scores_track_names)
                           +len(other_comparison_track_names)))
-             for x in self.prob_and_pertrack_sim_dealbreaker_thresholds]
+             for x in self.crosscontam_and_pertrack_sim_dealbreaker_thresholds]
 
         spurious_merge_detector = aggregator.DetectSpuriousMerging(
             track_names=contrib_scores_track_names,
@@ -321,28 +321,6 @@ class TfModiscoSeqletsToPatternsFactory(object):
                         verbose=self.verbose),
             min_in_subcluster=self.final_min_cluster_size)
 
-        #similar_patterns_collapser =\
-        #    aggregator.DynamicThresholdSimilarPatternsCollapser(
-        #        pattern_to_seqlet_sim_computer=
-        #            pattern_to_seqlet_sim_computer,
-        #        pattern_aligner=core.CrossCorrelationPatternAligner(
-        #            pattern_comparison_settings=
-        #                affinitymat.core.PatternComparisonSettings(
-        #                    track_names=(
-        #                        contrib_scores_track_names+
-        #                        other_comparison_track_names), 
-        #                    track_transformer=
-        #                        affinitymat.MeanNormalizer().chain(
-        #                        affinitymat.MagnitudeNormalizer()), 
-        #                    min_overlap=self.min_overlap_while_sliding)),
-        #        collapse_condition=(lambda dist_prob, aligner_sim:
-        #            any([(dist_prob > x[0] and aligner_sim > x[1])
-        #                 for x in prob_and_sim_merge_thresholds])),
-        #        dealbreaker_condition=(lambda dist_prob, aligner_sim:
-        #            any([(dist_prob < x[0] and aligner_sim < x[1])              
-        #                 for x in prob_and_sim_dealbreaker_thresholds])),
-        #        postprocessor=postprocessor1,
-        #        verbose=self.verbose) 
         similar_patterns_collapser =\
             aggregator.DynamicDistanceSimilarPatternsCollapser(
                 pattern_to_pattern_sim_computer=
@@ -358,12 +336,12 @@ class TfModiscoSeqletsToPatternsFactory(object):
                                 affinitymat.MeanNormalizer().chain(
                                 affinitymat.MagnitudeNormalizer()), 
                             min_overlap=self.min_overlap_while_sliding)),
-                collapse_condition=(lambda dist_prob, aligner_sim:
-                    any([(dist_prob > x[0] and aligner_sim > x[1])
-                         for x in prob_and_sim_merge_thresholds])),
-                dealbreaker_condition=(lambda dist_prob, aligner_sim:
-                    any([(dist_prob < x[0] and aligner_sim < x[1])              
-                         for x in prob_and_sim_dealbreaker_thresholds])),
+                collapse_condition=(lambda cross_contam, aligner_sim:
+                    any([(cross_contam > x[0] and aligner_sim > x[1])
+                         for x in crosscontam_and_sim_merge_thresholds])),
+                dealbreaker_condition=(lambda cross_contam, aligner_sim:
+                    any([(cross_contam < x[0] and aligner_sim < x[1])              
+                         for x in crosscontam_and_sim_dealbreaker_thresholds])),
                 postprocessor=postprocessor1,
                 verbose=self.verbose)
 
@@ -671,7 +649,7 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
             sys.stdout.flush()
         merged_patterns, pattern_merge_hierarchy =\
             self.similar_patterns_collapser( 
-                patterns=split_patterns, seqlets=seqlets) 
+                patterns=split_patterns) 
         merged_patterns = sorted(merged_patterns, key=lambda x: -x.num_seqlets)
         if (self.verbose):
             print("Got "+str(len(merged_patterns))+" patterns after merging")
