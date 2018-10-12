@@ -41,11 +41,10 @@ class TfModiscoSeqletsToPatternsFactory(object):
                        initial_flank_to_add=10,
 
                        crosscontam_and_pertrack_sim_merge_thresholds=[
-                        (0.0001,0.84), (0.00001, 0.87), (0.000001, 0.9)],
+                        (0.5,0.8), (0.25, 0.85), (0.0, 0.9)],
 
                        crosscontam_and_pertrack_sim_dealbreaker_thresholds=[
-                        (0.1,0.75), (0.01, 0.8), (0.001, 0.83),
-                        (0.0000001,0.9)],
+                        (0.0,0.75)],
 
                        threshold_for_spurious_merge_detection=0.8,
 
@@ -340,7 +339,7 @@ class TfModiscoSeqletsToPatternsFactory(object):
                     any([(cross_contam > x[0] and aligner_sim > x[1])
                          for x in crosscontam_and_sim_merge_thresholds])),
                 dealbreaker_condition=(lambda cross_contam, aligner_sim:
-                    any([(cross_contam < x[0] and aligner_sim < x[1])              
+                    any([(cross_contam <= x[0] and aligner_sim <= x[1])              
                          for x in crosscontam_and_sim_dealbreaker_thresholds])),
                 postprocessor=postprocessor1,
                 verbose=self.verbose)
