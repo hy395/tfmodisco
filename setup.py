@@ -1,14 +1,17 @@
 from distutils.core import setup
+from setuptools import find_packages
 
 if __name__== '__main__':
     setup(include_package_data=True,
           description='TF MOtif Discovery from Importance SCOres',
           url='NA',
           download_url='NA',
-          version='0.4.1.1',
-          packages=['modisco', 'modisco.cluster','modisco.backend',
-                    'modisco.visualization', 'modisco.affinitymat',
-                    'modisco.tfmodisco_workflow', 'modisco.hit_scoring'],
+          version='0.4.2.2',
+          packages=find_packages(),
+          package_data={
+                '': ['cluster/phenograph/louvain/*convert*', 'cluster/phenograph/louvain/*community*', 'cluster/phenograph/louvain/*hierarchy*']
+          },
+          zip_safe=False,
           setup_requires=[],
           install_requires=['numpy>=1.9', 'joblib>=0.11', 
                             'scikit-learn>=0.19',
