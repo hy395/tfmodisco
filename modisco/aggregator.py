@@ -851,8 +851,10 @@ class DynamicDistanceSimilarPatternsCollapser(object):
             patterns_to_seqlets_simmat =\
                 self.pattern_to_pattern_sim_computer(
                                         seqlets=seqlets,
-                                        filter_seqlets=patterns)
-            cross_contamination = np.zeros(len(patterns_to_seqlets_dist))
+                                        filter_seqlets=patterns).transpose(
+                                         (1,0))
+            cross_contamination = np.zeros((len(patterns_to_seqlets_simmat),
+                                            len(patterns_to_seqlets_simmat)))
             for seqlet_idx in range(patterns_to_seqlets_simmat.shape[1]):
                 seqlet_orig_pattern = orig_seqlet_membership[seqlet_idx]
                 seqlet_self_sim = patterns_to_seqlets_simmat[
@@ -864,9 +866,10 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                                             pattern_idx] += 1 
             #normalize the cross_contamination rows by the num in the diagonal 
             for pattern_idx in range(len(cross_contamination)):
+                assert cross_contamination[pattern_idx,pattern_idx] > 0
                 cross_contamination[pattern_idx] =\
                  (cross_contamination[pattern_idx]/
-                  cross_contamination[pattern_idx,patern_idx])
+                  float(cross_contamination[pattern_idx,pattern_idx]))
 
             if (self.verbose):
                 print("Computing pattern to pattern sims")
@@ -878,6 +881,13 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                     (alnmt, rc, aligner_sim) =\
                         self.pattern_aligner(pattern1, pattern2)
                     patterns_to_patterns_aligner_sim[i,j] = aligner_sim
+            if (self.verbose):
+                print("Cluster sizes")
+                print(np.array([len(x.seqlets) for x in patterns]))
+                print("Cross-contamination matrix:")
+                print(np.round(cross_contamination,2))
+                print("Pattern-to-pattern sim matrix:")
+                print(np.round(patterns_to_patterns_aligner_sim,2))
 
             indices_to_merge = []
             merge_partners_so_far = dict([(i, set([i])) for i in
@@ -890,7 +900,7 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                             key=lambda x: -x[2])
             #iterate over pairs
             for (i,j,aligner_sim) in sorted_pairs:
-                cross_contam = min(cross_contamination[i,j],
+                cross_contam = max(cross_contamination[i,j],
                                    cross_contamination[j,i])
                 if (self.collapse_condition(cross_contam=cross_contam,
                                             aligner_sim=aligner_sim)):
@@ -911,7 +921,7 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                         for m2 in merge_under_consideration:
                             if (m1 < m2):
                                 cross_contam_here =\
-                                    min(cross_contamination[m1, m2],
+                                    max(cross_contamination[m1, m2],
                                         cross_contamination[m2, m1])
                                 aligner_sim_here =\
                                     patterns_to_patterns_aligner_sim[
@@ -939,10 +949,11 @@ class DynamicDistanceSimilarPatternsCollapser(object):
                                 merge_under_consideration 
                 else:
                     if (self.verbose):
-                        print("Not collapsed "+str(i)+" & "+str(j)
-                              +" with cross-contam "+str(cross_contam)+" and"
-                              +" sim "+str(aligner_sim)) 
-                        sys.stdout.flush()
+                        pass
+                        #print("Not collapsed "+str(i)+" & "+str(j)
+                        #      +" with cross-contam "+str(cross_contam)+" and"
+                        #      +" sim "+str(aligner_sim)) 
+                        #sys.stdout.flush()
 
             for i,j in indices_to_merge:
                 pattern1 = patterns[i]
