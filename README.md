@@ -1,7 +1,7 @@
 ## TF-MoDISco
 
 H.Y note: 
-1. following Ziga Avsec's suggestion, changed metacluster.py to avoid a bug when running on single target.
+1. following Ziga Avsec's suggestion, changed metaclusterers.py to avoid a bug when running on single target.
 2. I changed how tfmodisco print out the log file. so it is more readable. grep "step" on the log file to get time and memory usage after each step.
 
 
