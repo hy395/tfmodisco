@@ -16,8 +16,14 @@ def print_memory_use():
     import os
     import psutil
     process = psutil.Process(os.getpid())
-    print("MEMORY",process.memory_info().rss/1000000000)
+    #print("MEMORY",process.memory_info().rss/1000000000)
+    print("MEMORY: %.2f gb"%(process.memory_info().rss/1000000000))
 
+def return_memory():
+    import os
+    import psutil
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss/1000000000
 
 class TfModiscoSeqletsToPatternsFactory(object):
 
@@ -218,8 +224,8 @@ class TfModiscoSeqletsToPatternsFactory(object):
                 sim_metric_on_nn_pairs=\
                     affinitymat.core.ParallelCpuCrossMetricOnNNpairs(
                         n_cores=self.n_cores,
-                        cross_metric_single_region=
-                            affinitymat.core.CrossContinJaccardSingleRegion()))
+                        cross_metric_single_region=affinitymat.core.CrossContinJaccardSingleRegion(),
+                        verbose=self.verbose))
 
         filter_mask_from_correlation =\
             affinitymat.core.FilterMaskFromCorrelation(
@@ -268,13 +274,15 @@ class TfModiscoSeqletsToPatternsFactory(object):
         expand_trim_expand1 =\
             aggregator.ExpandSeqletsToFillPattern(
                 track_set=track_set,
-                flank_to_add=self.initial_flank_to_add).chain(
+                flank_to_add=self.initial_flank_to_add,
+                verbose=self.verbose).chain(
             aggregator.TrimToBestWindow(
                 window_size=self.trim_to_window_size,
                 track_names=contrib_scores_track_names)).chain(
             aggregator.ExpandSeqletsToFillPattern(
                 track_set=track_set,
-                flank_to_add=self.initial_flank_to_add))
+                flank_to_add=self.initial_flank_to_add,
+                verbose=self.verbose))
         postprocessor1 =\
             aggregator.TrimToFracSupport(
                         min_frac=self.frac_support_to_trim_to,
@@ -392,7 +400,8 @@ class TfModiscoSeqletsToPatternsFactory(object):
 
         final_postprocessor = aggregator.ExpandSeqletsToFillPattern(
                                         track_set=track_set,
-                                        flank_to_add=self.final_flank_to_add) 
+                                        flank_to_add=self.final_flank_to_add,
+                                        verbose=self.verbose) 
 
         return TfModiscoSeqletsToPatterns(
                 seqlets_sorter=seqlets_sorter,
@@ -540,9 +549,18 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
                 print("(Round "+str(round_num)+") Computing coarse affmat")
                 print_memory_use()
                 sys.stdout.flush()
+            
+            print("")
+            print("(Round %d) step3: embedding+coarse_affmat computation."%round_num)
+            t1=time.time()
             coarse_affmat = self.coarse_affmat_computer(seqlets)
             #coarse_affmats.append(coarse_affmat)
+            t2=time.time()
+            print("(Round %d) step3 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(round_num, t2-t1, t2-start, return_memory()))
 
+            print("")
+            print("(Round %d) step4: fine-grained affmat computation."%round_num)
+            t1=time.time()
             if (self.skip_fine_grained==False):
                 nn_start = time.time() 
                 if (self.verbose):
@@ -609,17 +627,27 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
                 filtered_affmat = coarse_affmat
                 filtered_seqlets = seqlets
 
+            t2=time.time()
+            print("(Round %d) step4 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(round_num, t2-t1, t2-start, return_memory()))
+
+            print("") 
+            print("(Round %d) step5: convert to distance mat and then to t-SNE like probability."%round_num)
+            t1=time.time()
             if (self.verbose):
                 print("(Round "+str(round_num)+") Computing density "
                       +"adapted affmat")
                 print_memory_use()
-                sys.stdout.flush() 
-
-            density_adapted_affmat =\
-                self.density_adapted_affmat_transformer(filtered_affmat)
+                sys.stdout.flush()
+            
+            density_adapted_affmat = self.density_adapted_affmat_transformer(filtered_affmat)
             del filtered_affmat
             #density_adapted_affmats.append(density_adapted_affmat)
-
+            t2=time.time()
+            print("(Round %d) step5 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(round_num, t2-t1, t2-start, return_memory()))
+            
+            print("")
+            print("(Round %d) step6: convert to Louvain based affinity and finally cluster. (how often two seqlets are clustered together)"%round_num)
+            t1=time.time()
             if (self.verbose):
                 print("(Round "+str(round_num)+") Computing clustering")
                 print_memory_use()
@@ -638,9 +666,14 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
                 print_memory_use()
                 sys.stdout.flush()
 
+            t2=time.time()
+            print("(Round %d) step6 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(round_num, t2-t1, t2-start, return_memory()))
+
+            print("")
+            print("(Round %d) step7: align and create motif for each cluster."%round_num)
+            t1=time.time()
             if (self.verbose):
-                print("(Round "+str(round_num)+") Aggregating seqlets"
-                      +" in each cluster")
+                print("(Round "+str(round_num)+") Aggregating seqlets in each cluster")
                 print_memory_use()
                 sys.stdout.flush()
 
@@ -678,12 +711,22 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
             seqlets = dict([(y.exidx_start_end_string, y)
                              for x in cluster_to_motif.values()
                              for y in x.seqlets]).values()
+            
+            #if (self.verbose):
+            print("Got %d clusters"%len(cluster_to_motif.values()))
 
-        if (self.verbose):
-            print("Got "+str(len(cluster_to_motif.values()))+" clusters")
-            print("Splitting into subclusters...")
-            print_memory_use()
-            sys.stdout.flush()
+            t2=time.time()
+            print("(Round %d) step7 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(round_num, t2-t1, t2-start, return_memory()))
+
+        print("")
+        print("step8. split a cluster if it is spuriously merged.")
+        #if (self.verbose):
+        print("Got %d clusters"%len(cluster_to_motif.values()))
+
+        t1=time.time()
+        print("Splitting into subclusters...")
+        print_memory_use()
+        sys.stdout.flush()
 
         split_patterns = self.spurious_merge_detector(
                             cluster_to_motif.values())
@@ -698,12 +741,17 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
                     cluster_results=None, 
                     total_time_taken=None,
                     success=False)
+        t2=time.time()
+        print("step8 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(t2-t1, t2-start, return_memory()))
 
         #Now start merging patterns 
-        if (self.verbose):
-            print("Merging on "+str(len(split_patterns))+" clusters")
-            print_memory_use()
-            sys.stdout.flush()
+        #if (self.verbose):
+        print("")
+        print("step9. merge motifs that are similar.")
+        t1=time.time()
+        print("Merging on "+str(len(split_patterns))+" clusters")
+        print_memory_use()
+        sys.stdout.flush()
         merged_patterns, pattern_merge_hierarchy =\
             self.similar_patterns_collapser( 
                 patterns=split_patterns, seqlets=seqlets) 
@@ -712,7 +760,12 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
             print("Got "+str(len(merged_patterns))+" patterns after merging")
             print_memory_use()
             sys.stdout.flush()
+        t2=time.time()
+        print("step9 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(t2-t1, t2-start, return_memory()))
 
+        print("")
+        print("step10. seqlet reassignment.")
+        t1=time.time()
         if (self.verbose):
             print("Performing seqlet reassignment")
             print_memory_use()
@@ -724,13 +777,15 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
                   +" patterns after reassignment")
             print_memory_use()
             sys.stdout.flush()
+        t2=time.time()
+        print("step10 completed in: %.2f s, metacluster total %.2f s, current memory usage %.2f gb."%(t2-t1, t2-start, return_memory()))
+        print("")
 
         total_time_taken = round(time.time()-start,2)
-        if (self.verbose):
-            print("Total time taken is "
-                  +str(total_time_taken)+"s")
-            print_memory_use()
-            sys.stdout.flush()
+        #if (self.verbose):
+        #print("Total time taken is "+str(total_time_taken)+"s")
+        #print_memory_use()
+        sys.stdout.flush()
 
         results = SeqletsToPatternsResults(
             patterns=final_patterns,

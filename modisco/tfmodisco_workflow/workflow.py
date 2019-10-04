@@ -18,8 +18,14 @@ def print_memory_use():
     import os
     import psutil
     process = psutil.Process(os.getpid())
-    print("MEMORY",process.memory_info().rss/1000000000)
+    #print("MEMORY",process.memory_info().rss/1000000000)
+    print("MEMORY: %.2f gb"%(process.memory_info().rss/1000000000))
 
+def return_memory():
+    import os
+    import psutil
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss/1000000000
 
 class TfModiscoResults(object):
 
@@ -207,9 +213,13 @@ class TfModiscoWorkflow(object):
                        per_position_contrib_scores=None,
                        revcomp=True,
                        other_tracks=[]):
-
+        print("")
+        print("TF-modisco begins:")
         print_memory_use()
+        print("")
+        print("step1: seqlets identification.")
 
+        t1 = time.time()
         self.coord_producer = coordproducers.FixedWindowAroundChunks(
             sliding=self.sliding_window_size,
             flank=self.flank_size,
@@ -258,8 +268,12 @@ class TfModiscoWorkflow(object):
         if (len(seqlets) < 100):
             print("WARNING: you found relatively few seqlets."
                   +" Consider dropping target_seqlet_fdr") 
+        t2 = time.time()
+        print("step1 completed in: %.2f s, current memory usage %.2f gb."%(t2-t1, return_memory()))
 
-        
+        print("")
+        print("step2: metacluster assignment.")
+        t1 = time.time()
         if int(self.min_metacluster_size_frac * len(seqlets)) > self.min_metacluster_size:
             print("min_metacluster_size_frac * len(seqlets) = {0} is more than min_metacluster_size={1}.".\
                   format(int(self.min_metacluster_size_frac * len(seqlets)), self.min_metacluster_size))
@@ -309,17 +323,23 @@ class TfModiscoWorkflow(object):
         num_metaclusters = max(metacluster_indices)+1
         metacluster_sizes = [np.sum(metacluster_idx==metacluster_indices)
                               for metacluster_idx in range(num_metaclusters)]
-        if (self.verbose):
-            print("Metacluster sizes: ",metacluster_sizes)
-            print("Idx to activities: ",metacluster_idx_to_activity_pattern)
-            print_memory_use()
-            sys.stdout.flush()
+        #if (self.verbose):
+        print("Metacluster sizes: ",metacluster_sizes)
+        print("Idx to activities: ",metacluster_idx_to_activity_pattern)
+        #print_memory_use()
+        t2 = time.time()
+        print("step2 completed in: %.2f s, current memory usage %.2f gb."%(t2-t1, return_memory()))
+        sys.stdout.flush()
 
         metacluster_idx_to_submetacluster_results = OrderedDict()
 
         for metacluster_idx, metacluster_size in\
             sorted(enumerate(metacluster_sizes), key=lambda x: x[1]):
+            
+            print("")
             print("On metacluster "+str(metacluster_idx))
+            print("")
+
             if (self.max_seqlets_per_metacluster is None
                 or self.max_seqlets_per_metacluster >= metacluster_size): 
                 print("Metacluster size", metacluster_size)

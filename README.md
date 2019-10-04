@@ -1,5 +1,10 @@
 ## TF-MoDISco
 
+H.Y note: 
+1. following Ziga Avsec's suggestion, changed metacluster.py to avoid a bug when running on single target.
+2. I changed how tfmodisco print out the log file. so it is more readable. grep "step" on the log file to get time and memory usage after each step.
+
+
 [![DOI](https://zenodo.org/badge/62352963.svg)](https://zenodo.org/badge/latestdoi/62352963)
 
 Installation:

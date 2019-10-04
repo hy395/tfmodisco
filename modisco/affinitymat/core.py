@@ -15,8 +15,14 @@ def print_memory_use():
     import os
     import psutil
     process = psutil.Process(os.getpid())
-    print("MEMORY",process.memory_info().rss/1000000000)
+    #print("MEMORY",process.memory_info().rss/1000000000)
+    print("MEMORY: %.2f gb"%(process.memory_info().rss/1000000000))
 
+def return_memory():
+    import os
+    import psutil
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss/1000000000
 
 class AbstractTrackTransformer(object):
 

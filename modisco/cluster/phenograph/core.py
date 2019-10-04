@@ -179,7 +179,7 @@ def graph2binary(filename, graph):
     # write to file (NB f.writelines is ~10x faster than np.tofile(f))
     with open(filename + '.bin', 'w+b') as f:
         f.writelines([e for t in zip(ij, s) for e in t])
-    print("Wrote graph to binary file in {} seconds".format(time.time() - tic))
+    #print("Wrote graph to binary file in {} seconds".format(time.time() - tic))
 
 
 def get_modularity(msg):
@@ -318,9 +318,9 @@ def runlouvain(filename, level_to_return=-1, tol=1e-3,
                 out, err = p.communicate()
                 communities = parse_l1_clusters(out.decode())
 
-            print("After {} runs, maximum modularity is Q = {}".format(run, Q))
-
-    print("Louvain completed {} runs in {} seconds".format(run, time.time() - tic))
+            #print("After {} runs, maximum modularity is Q = {}".format(run, Q))
+    #print("After {} runs, maximum modularity is Q = {}".format(run, Q))
+    #print("Louvain completed {} runs in {} seconds".format(run, time.time() - tic))
     sys.stdout.flush()
 
     return communities, Q

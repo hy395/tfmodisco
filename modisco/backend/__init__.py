@@ -57,10 +57,10 @@ if 'TFMODISCO_BACKEND' in os.environ:
 
 # Import backend functions.
 if _BACKEND == 'theano':
-    sys.stderr.write('TF-MoDISco is using the Theano backend.\n')
+    #sys.stderr.write('TF-MoDISco is using the Theano backend.\n')
     from .theano_backend import *
 elif _BACKEND == 'tensorflow':
-    sys.stderr.write('TF-MoDISco is using the TensorFlow backend.\n')
+    #sys.stderr.write('TF-MoDISco is using the TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
     raise ValueError('Unable to import backend : ' + str(_BACKEND))

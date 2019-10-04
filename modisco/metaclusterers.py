@@ -144,9 +144,13 @@ class SignBasedPatternClustering(AbstractMetaclusterer):
                   else (1 if element > 0 else -1)
                   for element in vector])
         if all([ v == 0 for v in to_return ]) :
-            print(vector)
-            print(to_return)
-            assert False
+            # original code don't like pattern of [0]. But this happens if you only have 1 target track.
+            # this modification is from Ziga Avsec
+            #print(vector)
+            #print(to_return)
+            #assert False
+            v = np.array(vector)
+            to_return = (np.abs(v).argmax() == np.arange(len(v))) * np.sign(v).astype(int) # assign pattern to +1 or -1 depending on sign of scores.
         return to_return
     
     def weak_vector_to_pattern(self, vector):
