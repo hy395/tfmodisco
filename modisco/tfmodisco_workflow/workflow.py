@@ -6,13 +6,13 @@ import time
 import sys
 import h5py
 import json
+import pickle
 from . import seqlets_to_patterns
 from .. import core
 from .. import coordproducers
 from .. import metaclusterers
 from .. import util
 from .. import value_provider
-
 
 def print_memory_use():
     import os
@@ -253,6 +253,7 @@ class TfModiscoWorkflow(object):
                 track_set=track_set)
 
         #find the weakest transformed threshold used across all tasks
+        
         weakest_transformed_thresh = (min(
             [min(x.tnt_results.transformed_pos_threshold,
                  abs(x.tnt_results.transformed_neg_threshold))
@@ -270,7 +271,13 @@ class TfModiscoWorkflow(object):
                   +" Consider dropping target_seqlet_fdr") 
         t2 = time.time()
         print("step1 completed in: %.2f s, current memory usage %.2f gb."%(t2-t1, return_memory()))
+        print("saving seqlets to seqlets.pickle")
 
+        # save seqlets to pickle
+        pickle_out = open("seqlets.pickle","wb")
+        pickle.dump(seqlets, pickle_out)
+        pickle_out.close()
+        
         print("")
         print("step2: metacluster assignment.")
         t1 = time.time()
