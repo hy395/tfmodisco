@@ -94,7 +94,8 @@ class LouvainCluster(AbstractAffinityMatClusterer):
         #replace nan values with zeros
         orig_affinity_mat = np.nan_to_num(orig_affinity_mat)
         assert np.min(orig_affinity_mat) >= 0, np.min(orig_affinity_mat)
-
+        
+        # use transformer to compute Louvain-based affinity
         if (self.verbose):
             print("Beginning preprocessing + Louvain")
             sys.stdout.flush()
@@ -103,7 +104,8 @@ class LouvainCluster(AbstractAffinityMatClusterer):
             affinity_mat = self.affmat_transformer(orig_affinity_mat)
         else:
             affinity_mat = orig_affinity_mat
-
+                
+        # compute Louvain clustering based on Louvain-based affinity matrix
         communities, graph, Q, =\
             ph.cluster.runlouvain_given_graph(
                 graph=affinity_mat,
@@ -114,7 +116,7 @@ class LouvainCluster(AbstractAffinityMatClusterer):
                 contin_runs=self.contin_runs,
                 louvain_time_limit=self.louvain_time_limit,
                 seed=self.seed)
-
+        
         cluster_results = LouvainClusterResults(
                 cluster_indices=communities,
                 level_to_return=self.level_to_return,

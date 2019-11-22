@@ -654,6 +654,8 @@ class TfModiscoSeqletsToPatterns(AbstractSeqletsToPatterns):
                 sys.stdout.flush() 
 
             cluster_results = clusterer(density_adapted_affmat)
+            print("(Round %d) step6 after clustering memory usage: %.2f gb."%(round_num, return_memory()))
+            
             del density_adapted_affmat
             #cluster_results_sets.append(cluster_results)
             num_clusters = max(cluster_results.cluster_indices+1)
