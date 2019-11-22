@@ -178,8 +178,11 @@ def graph2binary(filename, graph):
         s = s.astype('float64')
     # write to file (NB f.writelines is ~10x faster than np.tofile(f))
     with open(filename + '.bin', 'w+b') as f:
-        f.writelines([e for t in zip(ij, s) for e in t])
-    #print("Wrote graph to binary file in {} seconds".format(time.time() - tic))
+        #f.writelines([e for t in zip(ij, s) for e in t]) # this step creates a 60G list for a 4G sparse matrix, avoid
+        for idx in range(len(s)):
+            f.write(ij[idx])
+            f.write( s[idx])
+    print("Wrote graph to binary file in {} seconds".format(time.time() - tic))
 
 
 def get_modularity(msg):
@@ -411,5 +414,11 @@ def runlouvain_average_runs(filename, n_runs,
     print("Louvain completed {} runs in {} seconds".format(
           n_runs, time.time() - tic))
     sys.stdout.flush()
-
-    return coocc_count.astype("float32")/float(len(communities_list))
+    
+    # use sparse matrix here. runlouvain_given_graph converts things to sparse matrix anyway.
+    # coocc_count is float64 format.
+    coocc_count = sp.coo_matrix(coocc_count)
+    coocc_count = coocc_count / n_runs
+    return coocc_count
+    
+    #return coocc_count.astype("float32")/float(len(communities_list))
